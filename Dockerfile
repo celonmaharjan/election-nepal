@@ -1,53 +1,55 @@
-# --- Stage 1: Build Assets ---
-FROM node:20-alpine AS assets-builder
+# Stage 1: Composer dependencies
+FROM composer:2 as vendor
 WORKDIR /app
-COPY package*.json ./
+COPY database/ database/
+COPY composer.json composer.json
+COPY composer.lock composer.lock
+RUN composer install --ignore-platform-reqs --no-interaction --no-plugins --no-scripts --prefer-dist
+
+# Stage 2: Node.js assets
+FROM node:20-alpine as node_assets
+WORKDIR /app
+COPY package.json package.json
+COPY package-lock.json package-lock.json
 RUN npm install
 COPY . .
 RUN npm run build
 
-# --- Stage 2: Production Server ---
-FROM php:8.4-fpm-alpine
+# Stage 3: Final image
+FROM php:8.4-apache
 
 # Install system dependencies
-RUN apk add --no-cache 
-    nginx 
-    wget 
-    icu-dev 
-    libpq-dev 
-    libpng-dev 
-    libzip-dev 
-    zip 
-    unzip 
-    git 
-    bash
+RUN apt-get update && apt-get install -y \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libicu-dev \
+    zip \
+    unzip \
+    libpq-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd pdo pdo_pgsql intl bcmath \
+    && a2enmod rewrite
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo_pgsql gd zip intl bcmath
+# Apache VirtualHost Configuration
+COPY docker/apache.conf /etc/apache2/sites-available/000-default.conf
 
-# Configure Nginx
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-
-# Set up working directory
+# Copy application code and built assets
 WORKDIR /var/www/html
-
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Copy application code
+COPY --from=vendor /app/vendor/ vendor/
+COPY --from=node_assets /app/public/build/ public/build/
 COPY . .
-COPY --from=assets-builder /app/public/build ./public/build
-
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
 
 # Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Copy startup script
-COPY docker/start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh
+# Copy entrypoint script
+COPY docker/start.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# Set the entrypoint
+ENTRYPOINT ["entrypoint.sh"]
+
+# Expose port 80
 EXPOSE 80
-
-CMD ["/usr/local/bin/start.sh"]
