@@ -5,6 +5,9 @@ set -e
 
 echo "🚀 Booting Election Portal..."
 
+# Force Apache to listen on IPv4 (0.0.0.0) so Render's port scanner can detect it
+echo "Listen 0.0.0.0:80" > /etc/apache2/ports.conf
+
 # Cache configurations for speed
 php artisan config:cache
 php artisan route:cache
