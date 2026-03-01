@@ -7,8 +7,9 @@ echo "🚀 Booting Election Portal..."
 
 # Use $PORT provided by Render, or default to 80
 export PORT=${PORT:-80}
-sed -i "s/Listen 80/Listen 0.0.0.0:$PORT/g" /etc/apache2/ports.conf
-sed -i "s/<VirtualHost \*:80>/<VirtualHost *:$PORT>/g" /etc/apache2/sites-available/000-default.conf
+# Tell Apache to explicitly bind to IPv4 all interfaces for the Render prober
+sed -i "s/^Listen 80$/Listen 0.0.0.0:$PORT/" /etc/apache2/ports.conf
+sed -i "s/<VirtualHost \*:80>/<VirtualHost 0.0.0.0:$PORT>/g" /etc/apache2/sites-available/000-default.conf
 
 # Cache configurations for speed
 php artisan config:cache
