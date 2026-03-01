@@ -5,6 +5,10 @@ set -e
 
 echo "🚀 Booting Election Portal..."
 
+# Fix: Ensure only one MPM is loaded (prefork is required for mod_php)
+a2dismod mpm_event mpm_worker 2>/dev/null || true
+a2enmod mpm_prefork 2>/dev/null || true
+
 # Use $PORT from Render (defaults to 10000), fallback to 80 for local dev
 export PORT=${PORT:-80}
 
