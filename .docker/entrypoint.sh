@@ -5,11 +5,6 @@ set -e
 
 echo "🚀 Booting Election Portal..."
 
-# Update Apache port if $PORT is set by Render
-if [ -n "$PORT" ]; then
-    sed -i "s/80/$PORT/g" /etc/apache2/sites-available/000-default.conf /etc/apache2/ports.conf
-fi
-
 # Cache configurations for speed
 php artisan config:cache
 php artisan route:cache
