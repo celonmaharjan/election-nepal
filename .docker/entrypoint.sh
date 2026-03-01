@@ -26,6 +26,10 @@ php artisan view:cache
 # Run migrations if DB is available
 php artisan migrate --force || echo "⚠️ Database not ready or migration failed. Skipping."
 
+# Fix storage permissions (artisan commands above run as root, Apache runs as www-data)
+chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+
 # Start Apache
 echo "🌍 App is live"
 exec apache2-foreground
